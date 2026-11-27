@@ -56,13 +56,13 @@ try:
 
         if is_black(helligkeiten[5]):
             # print("Rechts")
-            lenkstärke -=0.75
+            lenkstärke -=1
         if is_black(helligkeiten[4]):
             # print("leicht Rechts")
             lenkstärke -=0.25
         if is_black(helligkeiten[0]):
             # print("Links")
-            lenkstärke +=0.75
+            lenkstärke +=1
         if is_black(helligkeiten[1]):
             # print("leicht Links")
             lenkstärke +=0.25
@@ -72,7 +72,6 @@ try:
         else:
             motorRight.set_effort(0.3)
             motorLeft.set_effort(0.3)
-        time.sleep_ms(50)
         
 
         
