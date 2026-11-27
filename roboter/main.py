@@ -44,8 +44,13 @@ encoderRight = Encoder(1, "MOTOR_R_ENCODER_A", "MOTOR_R_ENCODER_B", gear_ratio=g
 usedPowerRight = ADC(Pin(43, Pin.IN))
 print(f"{GREEN}Sensoren Initialisierung erfolgreich.{RESET}")
 
+lenkstärke = 0.0
+links_schwarz = 0.0
+rechts_schwarz = 0.0
 try:
     while(True):
+        links_schwarz*=0.75
+        rechts_schwarz*=0.75
         lenkstärke = 0.0
         helligkeiten = liniensensoren.read()
         for i in helligkeiten:
@@ -56,25 +61,43 @@ try:
 
         if is_black(helligkeiten[5]):
             # print("Rechts")
-            lenkstärke -=1
+            lenkstärke -=0.5
+            rechts_schwarz +=1
+            links_schwarz -=1
         if is_black(helligkeiten[4]):
             # print("leicht Rechts")
             lenkstärke -=0.25
+            rechts_schwarz +=0.5
+            links_schwarz -=0.5
         if is_black(helligkeiten[0]):
             # print("Links")
-            lenkstärke +=1
+            lenkstärke +=0.5
+            links_schwarz +=1
+            rechts_schwarz -=1
         if is_black(helligkeiten[1]):
             # print("leicht Links")
             lenkstärke +=0.25
-        if abs(lenkstärke)>0:
-            motorRight.set_effort(0.1+lenkstärke)
-            motorLeft.set_effort(0.1-lenkstärke)
+            links_schwarz +=0.5
+            rechts_schwarz -=0.5
+
+
+
+
+        if rechts_schwarz>links_schwarz:
+            lenkstärke-=0.4
+        elif links_schwarz>rechts_schwarz:
+            lenkstärke+=0.4
+
+        lenkstärke/=2
+        if abs(lenkstärke)>0.1:
+            motorRight.set_effort(+lenkstärke)
+            motorLeft.set_effort(-lenkstärke)
         else:
             motorRight.set_effort(0.3)
             motorLeft.set_effort(0.3)
         
 
-        
+
 
 
 except KeyboardInterrupt:
