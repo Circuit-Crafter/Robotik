@@ -1,0 +1,33 @@
+{
+    "python.languageServer": "Pylance",
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingModuleSource": "none"
+    },
+    "python.terminal.activateEnvironment": false,
+    "micropico.openOnStart": false,
+    "python.analysis.typeshedPaths": [
+        "~/.micropico-stubs/included"
+    ],
+    "python.analysis.extraPaths": [
+        "~/.micropico-stubs/included",
+        "./lib"
+    ],
+    "python.analysis.typeCheckingMode": "strict",
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.autoSearchPaths": false,
+    "python.analysis.enablePytestSupport": false,
+    "python.analysis.typeEvaluation.enableReachabilityAnalysis": true,
+    "python.analysis.typeEvaluation.strictDictionaryInference": true,
+    "python.analysis.typeEvaluation.strictSetInference": true,
+    "python.analysis.completeFunctionParens": true,
+    "micropico.statusbarButtons": [
+        "status",
+        "run",
+        "softreset",
+        "togglepicowfs",
+        "upload"
+    ],
+    "micropico.autoConnect": true,
+    "python.analysis.diagnosticMode": "workspace",
+    "python.analysis.importFormat": "relative"
+}
