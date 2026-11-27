@@ -1,159 +1,71 @@
-# SPDX-FileCopyrightText: 2016 Scott Shawcroft for Adafruit Industries
-#
-# SPDX-License-Identifier: MIT
+from machine import Pin
+from busio import I2C as Adafruit_I2C
+from qwiic_i2c import MicroPythonI2C
+from machine import I2C
 
-"""
-`adafruit_bus_device.i2c_device` - I2C Bus Device
-====================================================
-"""
+class I2C_Bus_Impl(Adafruit_I2C, MicroPythonI2C):
+    def __init__(self, i2c_bus: I2C, address_xor: int):
+        """Initialization"""
+        Adafruit_I2C.__init__(self, i2c_bus)
+        MicroPythonI2C.__init__(self, i2c_bus)
+        self.i2c_bus = i2c_bus
+        self.address_xor = address_xor
 
-__version__ = "0.0.0+auto.0"
-__repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_BusDevice.git"
-
-class i2c_device:
-
-    class I2CDevice:
-        """
-        Represents a single I2C device and manages locking the bus and the device
-        address.
-
-        :param ~busio.I2C i2c: The I2C bus the device is on
-        :param int device_address: The 7 bit device address
-        :param bool probe: Probe for the device upon object creation, default is true
-
-        .. note:: This class is **NOT** built into CircuitPython. See
-        :ref:`here for install instructions <bus_device_installation>`.
-
-        Example:
-
-        .. code-block:: python
-
-            import busio
-            from board import *
-            from adafruit_bus_device.i2c_device import I2CDevice
-
-            with busio.I2C(SCL, SDA) as i2c:
-                device = I2CDevice(i2c, 0x70)
-                bytes_read = bytearray(4)
-                with device:
-                    device.readinto(bytes_read)
-                # A second transaction
-                with device:
-                    device.write(bytes_read)
-        """
-
-        def __init__(self, i2c, device_address: int, probe: bool = True) -> None:
-            self.i2c = i2c
-            self.device_address = device_address
-
-            if probe:
-                self.__probe_for_device()
-
-        def readinto(self, buf, *, start: int = 0, end = None) -> None:
-            """
-            Read into ``buf`` from the device. The number of bytes read will be the
-            length of ``buf``.
-
-            If ``start`` or ``end`` is provided, then the buffer will be sliced
-            as if ``buf[start:end]``. This will not cause an allocation like
-            ``buf[start:end]`` will so it saves memory.
-
-            :param ~WriteableBuffer buffer: buffer to write into
-            :param int start: Index to start writing at
-            :param int end: Index to write up to but not include; if None, use ``len(buf)``
-            """
-            if end is None:
-                end = len(buf)
-            self.i2c.readfrom_into(self.device_address, buf, start=start, end=end)
-
-        def write(self, buf, *, start: int = 0, end = None) -> None:
-            """
-            Write the bytes from ``buffer`` to the device, then transmit a stop
-            bit.
-
-            If ``start`` or ``end`` is provided, then the buffer will be sliced
-            as if ``buffer[start:end]``. This will not cause an allocation like
-            ``buffer[start:end]`` will so it saves memory.
-
-            :param ~ReadableBuffer buffer: buffer containing the bytes to write
-            :param int start: Index to start writing from
-            :param int end: Index to read up to but not include; if None, use ``len(buf)``
-            """
-            if end is None:
-                end = len(buf)
-            self.i2c.writeto(self.device_address, buf, start=start, end=end)
-
-        def write_then_readinto(
-            self,
-            out_buffer,
-            in_buffer,
-            *,
-            out_start: int = 0,
-            out_end = None,
-            in_start: int = 0,
-            in_end = None,
-        ) -> None:
-            """
-            Write the bytes from ``out_buffer`` to the device, then immediately
-            reads into ``in_buffer`` from the device. The number of bytes read
-            will be the length of ``in_buffer``.
-
-            If ``out_start`` or ``out_end`` is provided, then the output buffer
-            will be sliced as if ``out_buffer[out_start:out_end]``. This will
-            not cause an allocation like ``buffer[out_start:out_end]`` will so
-            it saves memory.
-
-            If ``in_start`` or ``in_end`` is provided, then the input buffer
-            will be sliced as if ``in_buffer[in_start:in_end]``. This will not
-            cause an allocation like ``in_buffer[in_start:in_end]`` will so
-            it saves memory.
-
-            :param ~ReadableBuffer out_buffer: buffer containing the bytes to write
-            :param ~WriteableBuffer in_buffer: buffer containing the bytes to read into
-            :param int out_start: Index to start writing from
-            :param int out_end: Index to read up to but not include; if None, use ``len(out_buffer)``
-            :param int in_start: Index to start writing at
-            :param int in_end: Index to write up to but not include; if None, use ``len(in_buffer)``
-            """
-            if out_end is None:
-                out_end = len(out_buffer)
-            if in_end is None:
-                in_end = len(in_buffer)
-
-            self.i2c.writeto_then_readfrom(
-                self.device_address,
-                out_buffer,
-                in_buffer,
-                out_start=out_start,
-                out_end=out_end,
-                in_start=in_start,
-                in_end=in_end,
-            )
-
-        def __probe_for_device(self) -> None:
-            """
-            Try to read a byte from an address,
-            if you get an OSError it means the device is not there
-            or that the device does not support these means of probing
-            """
-            try:
-                self.i2c.writeto(self.device_address, b"")
-            except OSError:
-                # some OS's dont like writing an empty bytesting...
-                # Retry by reading a byte
-                try:
-                    result = bytearray(1)
-                    self.i2c.readfrom_into(self.device_address, result)
-                except OSError:
-                    raise ValueError("No I2C device at address: 0x%x" % self.device_address)
-
-    #-------------------------------------------------------------------------	
-    # stubs to support Python with statements. 
-    #
-    # Helpful for I2C interactions that require a mutex.
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, type, value, traceback):
+    def deinit(self):
+        """Deinitialization"""
+        try:
+            del self._i2c
+        except AttributeError:
             pass
+
+    def convertAddress(self, address: int):
+            return address ^ self.address_xor
+
+class I2C_Bus:
+    __FREQUENCY = 100000
+    __NO_ADDRESS_XOR = 0x00
+    __DEFAULT_ADDRESS_XOR = 0x40
+
+    __i2c_left = None
+    __i2c_right = None
+
+    __I2C_top_left = None
+    __I2C_top_right = None
+    __I2C_bottom_left = None
+    __I2C_bottom_right = None
+
+    @classmethod
+    def __getLeftI2CBus(cls) -> I2C:
+        if cls.__i2c_left is None:
+            cls.__i2c_left = I2C(id=0, sda=Pin(4), scl=Pin(5), freq=cls.__FREQUENCY)
+        return cls.__i2c_left
+
+    @classmethod
+    def __getRightI2CBus(cls) -> I2C:
+        if cls.__i2c_right is None:
+            cls.__i2c_right = I2C(id=1, sda=Pin(38), scl=Pin(39), freq=cls.__FREQUENCY)
+        return cls.__i2c_right
+
+    @classmethod
+    def I2C_OBEN_LINKS(cls) -> I2C_Bus_Impl:
+        if cls.__I2C_top_left is None:
+            cls.__I2C_top_left = I2C_Bus_Impl(cls.__getLeftI2CBus(), cls.__NO_ADDRESS_XOR)
+        return cls.__I2C_top_left
+
+    @classmethod
+    def I2C_OBEN_RECHTS(cls) -> I2C_Bus_Impl:
+        if cls.__I2C_top_right is None:
+            cls.__I2C_top_right = I2C_Bus_Impl(cls.__getRightI2CBus(), cls.__NO_ADDRESS_XOR)
+        return cls.__I2C_top_right
+
+    @classmethod
+    def I2C_UNTEN_LINKS(cls) -> I2C_Bus_Impl:
+        if cls.__I2C_bottom_left is None:
+            cls.__I2C_bottom_left = I2C_Bus_Impl(cls.__getLeftI2CBus(), cls.__DEFAULT_ADDRESS_XOR)
+        return cls.__I2C_bottom_left
+
+    @classmethod
+    def I2C_UNTEN_RECHTS(cls) -> I2C_Bus_Impl:
+        if cls.__I2C_bottom_right is None:
+            cls.__I2C_bottom_right = I2C_Bus_Impl(cls.__getRightI2CBus(), cls.__DEFAULT_ADDRESS_XOR)
+        return cls.__I2C_bottom_right

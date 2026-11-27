@@ -1,61 +1,119 @@
-import utime
+# SPDX-FileCopyrightText: Copyright (c) 2026 Tim Cocks for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+"""
+`adafruit_register.register_struct`
+====================================================
 
-from ucollections import namedtuple
+Generic structured registers based on `struct` that use RegisterAccessor
 
-_struct_time = namedtuple(
-    "struct_time",
-    (
-        "tm_year",
-        "tm_mon",
-        "tm_mday",
-        "tm_hour",
-        "tm_min",
-        "tm_sec",
-        "tm_wday",
-        "tm_yday",
-        "tm_isdst",
-    ),
-)
+* Author(s): Tim Cocks
 
-# pylint: disable=too-many-arguments
-def _marshal_time(
-    tm_year,
-    tm_mon,
-    tm_mday,
-    tm_hour=0,
-    tm_min=0,
-    tm_sec=0,
-    tm_wday=-1,
-    tm_yday=-1,
-    tm_isdst=-1,
-):
-    """Construct struct_time with default values."""
-    _struct_time(
-        tm_year,
-        tm_mon,
-        tm_mday,
-        tm_hour,
-        tm_min,
-        tm_sec,
-        tm_wday,
-        tm_yday,
-        tm_isdst,
-    )
+"""
 
-def struct_time(time_tuple):
-    """Create a struct_time"""
-    return _marshal_time(*time_tuple)
+__version__ = "0.0.0+auto.0"
+__repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_Register.git"
 
-# pylint: disable=invalid-name
-_total_ms = 0
-_prev_ticks_ms = utime.ticks_ms()
+import struct
 
-def monotonic():
-    """A monotonically increasing time in seconds. No defined start time."""
-    # Assumes that monotonic is called more frequently than the wraparound of micropython's
-    # utime.ticks_ms()
-    global _prev_ticks_ms, _total_ms  # pylint: disable=global-statement
-    ticks_ms = utime.ticks_ms()
-    _total_ms += utime.ticks_diff(ticks_ms, _prev_ticks_ms)
-    _prev_ticks_ms = ticks_ms
-    return _total_ms * 0.001
+from adafruit_register import _BUFFER, _fit
+
+
+class Struct:
+    """
+    Arbitrary structure register that is readable and writeable.
+
+    Values are tuples that map to the values in the defined struct. See struct
+    module documentation for struct format string and its possible value types.
+
+    The struct format string determines the byte order of the register *data*.
+    The byte order of the register *address* is determined by the ``lsb_first``
+    argument given to the `RegisterAccessor`.
+
+    :param int register_address: The register address to read the struct from
+    :param str struct_format: The struct format string for this register.
+    """
+
+    def __init__(self, register_address: int, struct_format: str) -> None:
+        self.format = struct_format
+        self.address = register_address
+        self.size = struct.calcsize(struct_format)  # replaces the per-instance self.buffer
+        _fit(self.size)
+
+    def __get__(self, obj, objtype=None):
+        # read data from register (memoryview bounds the transfer to this struct's width)
+        data = memoryview(_BUFFER)[: self.size]
+        obj.register_accessor.read_register(self.address, data)
+        return struct.unpack_from(self.format, data)
+
+    def __set__(self, obj, value):
+        # pack the new values into the data buffer
+        data = memoryview(_BUFFER)[: self.size]
+        struct.pack_into(self.format, data, 0, *value)
+        # write data buffer to the register
+        obj.register_accessor.write_register(self.address, data)
+
+
+class ROStruct(Struct):
+    """
+    Arbitrary structure register that is read-only. Subclass of `Struct`.
+
+    Values are tuples that map to the values in the defined struct. See struct
+    module documentation for struct format string and its possible value types.
+
+    :param int register_address: The register address to read the struct from
+    :param str struct_format: The struct format string for this register.
+    """
+
+    def __set__(self, obj, value):
+        raise AttributeError()
+
+
+class UnaryStruct:
+    """
+    Arbitrary single value structure register that is readable and writeable.
+
+    Values map to the first value in the defined struct. See struct
+    module documentation for struct format string and its possible value types.
+
+    The struct format string determines the byte order of the register *data*.
+    The byte order of the register *address* is determined by the ``lsb_first``
+    argument given to the `RegisterAccessor`.
+
+    :param int register_address: The register address to read the value from
+    :param str struct_format: The struct format string for this register.
+    """
+
+    def __init__(self, register_address: int, struct_format: str) -> None:
+        self.format = struct_format
+        self.address = register_address
+        self.size = struct.calcsize(struct_format)  # replaces the per-instance self.buffer
+        _fit(self.size)
+
+    def __get__(self, obj, objtype=None):
+        # read data from register (memoryview bounds the transfer to this value's width)
+        data = memoryview(_BUFFER)[: self.size]
+        obj.register_accessor.read_register(self.address, data)
+        return struct.unpack_from(self.format, data)[0]
+
+    def __set__(self, obj, value):
+        # pack the new value into the data buffer
+        data = memoryview(_BUFFER)[: self.size]
+        struct.pack_into(self.format, data, 0, value)
+        # write data buffer to the register
+        obj.register_accessor.write_register(self.address, data)
+
+
+class ROUnaryStruct(UnaryStruct):
+    """
+    Arbitrary single value structure register that is read-only. Subclass of `UnaryStruct`.
+
+    Values map to the first value in the defined struct. See struct
+    module documentation for struct format string and its possible value types.
+
+    :param int register_address: The register address to read the value from
+    :param str struct_format: The struct format string for this register.
+    """
+
+    def __set__(self, obj, value):
+        raise AttributeError()
